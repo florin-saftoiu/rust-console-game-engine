@@ -7,33 +7,54 @@ pub struct RustConsoleGameEngine {
 }
 
 impl RustConsoleGameEngine {
-    pub fn new() -> RustConsoleGameEngine {
+    pub fn new() -> std::result::Result<RustConsoleGameEngine, std::io::Error> {
         let h_console = unsafe {
             winapi::um::processenv::GetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE)
         };
+        if h_console == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+            return std::result::Result::Err(std::io::Error::last_os_error());
+        }
+        
         let mut rect_window = winapi::um::wincontypes::SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
-        unsafe {
-            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window);
+        let mut ret = unsafe {
+            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window)
+        };
+        if ret == 0 {
+            return std::result::Result::Err(std::io::Error::last_os_error());
         }
+
         let coord = winapi::um::wincontypes::COORD { X: 120, Y: 40 };
-        unsafe {
-            winapi::um::wincon::SetConsoleScreenBufferSize(h_console, coord);
-            winapi::um::wincon::SetConsoleActiveScreenBuffer(h_console);
+        ret = unsafe {
+            winapi::um::wincon::SetConsoleScreenBufferSize(h_console, coord)
+        };
+        if ret == 0 {
+            return std::result::Result::Err(std::io::Error::last_os_error());
         }
+
+        ret = unsafe {
+            winapi::um::wincon::SetConsoleActiveScreenBuffer(h_console)
+        };
+        if ret == 0 {
+            return std::result::Result::Err(std::io::Error::last_os_error());
+        }
+
         rect_window = winapi::um::wincontypes::SMALL_RECT { Left: 0, Top: 0, Right: 120 - 1, Bottom: 40 - 1 };
-        unsafe {
-            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window);
+        ret = unsafe {
+            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window)
+        };
+        if ret == 0 {
+            return std::result::Result::Err(std::io::Error::last_os_error());
         }
 
         let screen = std::boxed::Box::new(unsafe {
             std::mem::MaybeUninit::<[winapi::um::wincontypes::CHAR_INFO; 120 * 40]>::zeroed().assume_init()
         });
 
-        RustConsoleGameEngine {
+        std::result::Result::Ok(RustConsoleGameEngine {
             h_console,
             rect_window,
             screen
-        }
+        })
     }
 
     pub fn run(&mut self, game: &mut dyn RustConsoleGame) {
@@ -46,13 +67,24 @@ impl RustConsoleGameEngine {
             tp2 = std::time::Instant::now();
             let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
             tp1 = tp2;
+            
             game.update(self, elapsed_time);
+            
             use std::os::windows::ffi::OsStrExt;
             let title = format!("RustConsoleGameEngine - RustConsoleGameExample - FPS: {:3.2}", 1f32 / elapsed_time);
             let wide: std::vec::Vec<u16> = std::ffi::OsStr::new(&title).encode_wide().chain(std::iter::once(0)).collect();
-            unsafe {
-                winapi::um::wincon::SetConsoleTitleW(wide.as_ptr());
-                winapi::um::wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), winapi::um::wincontypes::COORD { X: 120, Y: 40 }, winapi::um::wincontypes::COORD { X: 0, Y: 0 }, &mut self.rect_window);
+            let mut ret = unsafe {
+                winapi::um::wincon::SetConsoleTitleW(wide.as_ptr())
+            };
+            if ret == 0 {
+                panic!("Error setting window title: {:?}", std::io::Error::last_os_error());
+            }
+            
+            ret = unsafe {
+                winapi::um::wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), winapi::um::wincontypes::COORD { X: 120, Y: 40 }, winapi::um::wincontypes::COORD { X: 0, Y: 0 }, &mut self.rect_window)
+            };
+            if ret == 0 {
+                panic!("Error writing console output: {:?}", std::io::Error::last_os_error());
             }
         }
     }

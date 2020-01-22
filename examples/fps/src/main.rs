@@ -32,6 +32,8 @@ fn main() {
         y: 0f32,
         velocity: 4f32
     };
-    let mut engine = engine::RustConsoleGameEngine::new();
+    let mut engine = engine::RustConsoleGameEngine::new().unwrap_or_else(|error| {
+        panic!("Error creating engine: {:?}", error);
+    });
     engine.run(&mut game);
 }
