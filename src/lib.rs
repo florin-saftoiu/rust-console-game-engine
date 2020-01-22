@@ -1,56 +1,70 @@
 extern crate winapi;
 
+use winapi::shared::minwindef::TRUE;
+use winapi::um::winnt::HANDLE;
+use winapi::um::winbase::STD_OUTPUT_HANDLE;
+use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD};
+use winapi::um::processenv;
+use winapi::um::wincon;
+use std::io::Error;
+use std::mem::MaybeUninit;
+use std::time::Instant;
+use std::ffi::OsStr;
+use std::os::windows::ffi::OsStrExt;
+use std::iter;
+
 pub struct RustConsoleGameEngine {
-    h_console: winapi::um::winnt::HANDLE,
-    rect_window: winapi::um::wincontypes::SMALL_RECT,
-    screen: std::boxed::Box<[winapi::um::wincontypes::CHAR_INFO]>
+    h_console: HANDLE,
+    rect_window: SMALL_RECT,
+    screen: Box<[CHAR_INFO]>
 }
 
 impl RustConsoleGameEngine {
-    pub fn new() -> std::result::Result<RustConsoleGameEngine, std::io::Error> {
+    pub fn new() -> Result<RustConsoleGameEngine, Error> {
         let h_console = unsafe {
-            winapi::um::processenv::GetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE)
+            processenv::GetStdHandle(STD_OUTPUT_HANDLE)
         };
-        if h_console == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-            return std::result::Result::Err(std::io::Error::last_os_error());
+        if h_console == INVALID_HANDLE_VALUE {
+            return Err(Error::last_os_error());
         }
         
-        let mut rect_window = winapi::um::wincontypes::SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
+        let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
         let mut ret = unsafe {
-            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window)
+            wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window)
         };
         if ret == 0 {
-            return std::result::Result::Err(std::io::Error::last_os_error());
+            return Err(Error::last_os_error());
         }
 
-        let coord = winapi::um::wincontypes::COORD { X: 120, Y: 40 };
+        let coord = COORD { X: 120, Y: 40 };
         ret = unsafe {
-            winapi::um::wincon::SetConsoleScreenBufferSize(h_console, coord)
+            wincon::SetConsoleScreenBufferSize(h_console, coord)
         };
         if ret == 0 {
-            return std::result::Result::Err(std::io::Error::last_os_error());
+            return Err(Error::last_os_error());
         }
 
         ret = unsafe {
-            winapi::um::wincon::SetConsoleActiveScreenBuffer(h_console)
+            wincon::SetConsoleActiveScreenBuffer(h_console)
         };
         if ret == 0 {
-            return std::result::Result::Err(std::io::Error::last_os_error());
+            return Err(Error::last_os_error());
         }
 
-        rect_window = winapi::um::wincontypes::SMALL_RECT { Left: 0, Top: 0, Right: 120 - 1, Bottom: 40 - 1 };
+        rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 120 - 1, Bottom: 40 - 1 };
         ret = unsafe {
-            winapi::um::wincon::SetConsoleWindowInfo(h_console, winapi::shared::minwindef::TRUE, &rect_window)
+            wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window)
         };
         if ret == 0 {
-            return std::result::Result::Err(std::io::Error::last_os_error());
+            return Err(Error::last_os_error());
         }
 
-        let screen = std::boxed::Box::new(unsafe {
-            std::mem::MaybeUninit::<[winapi::um::wincontypes::CHAR_INFO; 120 * 40]>::zeroed().assume_init()
+        let screen = Box::new(unsafe {
+            MaybeUninit::<[CHAR_INFO; 120 * 40]>::zeroed().assume_init()
         });
 
-        std::result::Result::Ok(RustConsoleGameEngine {
+        Ok(RustConsoleGameEngine {
             h_console,
             rect_window,
             screen
@@ -60,31 +74,30 @@ impl RustConsoleGameEngine {
     pub fn run(&mut self, game: &mut dyn RustConsoleGame) {
         game.setup();
 
-        let mut tp1 = std::time::Instant::now();
+        let mut tp1 = Instant::now();
         let mut tp2;
 
         loop {
-            tp2 = std::time::Instant::now();
+            tp2 = Instant::now();
             let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
             tp1 = tp2;
             
             game.update(self, elapsed_time);
             
-            use std::os::windows::ffi::OsStrExt;
             let title = format!("RustConsoleGameEngine - RustConsoleGameExample - FPS: {:3.2}", 1f32 / elapsed_time);
-            let wide: std::vec::Vec<u16> = std::ffi::OsStr::new(&title).encode_wide().chain(std::iter::once(0)).collect();
+            let wide: Vec<u16> = OsStr::new(&title).encode_wide().chain(iter::once(0)).collect();
             let mut ret = unsafe {
-                winapi::um::wincon::SetConsoleTitleW(wide.as_ptr())
+                wincon::SetConsoleTitleW(wide.as_ptr())
             };
             if ret == 0 {
-                panic!("Error setting window title: {:?}", std::io::Error::last_os_error());
+                panic!("Error setting window title: {:?}", Error::last_os_error());
             }
             
             ret = unsafe {
-                winapi::um::wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), winapi::um::wincontypes::COORD { X: 120, Y: 40 }, winapi::um::wincontypes::COORD { X: 0, Y: 0 }, &mut self.rect_window)
+                wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: 120, Y: 40 }, COORD { X: 0, Y: 0 }, &mut self.rect_window)
             };
             if ret == 0 {
-                panic!("Error writing console output: {:?}", std::io::Error::last_os_error());
+                panic!("Error writing console output: {:?}", Error::last_os_error());
             }
         }
     }
