@@ -22,47 +22,25 @@ pub struct RustConsoleGameEngine {
 
 impl RustConsoleGameEngine {
     pub fn new() -> Result<RustConsoleGameEngine, Error> {
-        let h_console = unsafe {
-            processenv::GetStdHandle(STD_OUTPUT_HANDLE)
-        };
-        if h_console == INVALID_HANDLE_VALUE {
-            return Err(Error::last_os_error());
-        }
+        let h_console = unsafe { processenv::GetStdHandle(STD_OUTPUT_HANDLE) };
+        if h_console == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
         
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
-        let mut ret = unsafe {
-            wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window)
-        };
-        if ret == 0 {
-            return Err(Error::last_os_error());
-        }
+        let mut ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
+        if ret == 0 { return Err(Error::last_os_error()); }
 
         let coord = COORD { X: 120, Y: 40 };
-        ret = unsafe {
-            wincon::SetConsoleScreenBufferSize(h_console, coord)
-        };
-        if ret == 0 {
-            return Err(Error::last_os_error());
-        }
+        ret = unsafe { wincon::SetConsoleScreenBufferSize(h_console, coord) };
+        if ret == 0 { return Err(Error::last_os_error()); }
 
-        ret = unsafe {
-            wincon::SetConsoleActiveScreenBuffer(h_console)
-        };
-        if ret == 0 {
-            return Err(Error::last_os_error());
-        }
+        ret = unsafe { wincon::SetConsoleActiveScreenBuffer(h_console) };
+        if ret == 0 { return Err(Error::last_os_error()); }
 
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 120 - 1, Bottom: 40 - 1 };
-        ret = unsafe {
-            wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window)
-        };
-        if ret == 0 {
-            return Err(Error::last_os_error());
-        }
+        ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
+        if ret == 0 { return Err(Error::last_os_error()); }
 
-        let screen = Box::new(unsafe {
-            MaybeUninit::<[CHAR_INFO; 120 * 40]>::zeroed().assume_init()
-        });
+        let screen = Box::new(unsafe { MaybeUninit::<[CHAR_INFO; 120 * 40]>::zeroed().assume_init() });
 
         Ok(RustConsoleGameEngine {
             h_console,
@@ -84,21 +62,13 @@ impl RustConsoleGameEngine {
             
             game.update(self, elapsed_time);
             
-            let title = format!("RustConsoleGameEngine - RustConsoleGameExample - FPS: {:3.2}", 1f32 / elapsed_time);
+            let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", game.name(), 1f32 / elapsed_time);
             let wide: Vec<u16> = OsStr::new(&title).encode_wide().chain(iter::once(0)).collect();
-            let mut ret = unsafe {
-                wincon::SetConsoleTitleW(wide.as_ptr())
-            };
-            if ret == 0 {
-                panic!("Error setting window title: {:?}", Error::last_os_error());
-            }
+            let mut ret = unsafe { wincon::SetConsoleTitleW(wide.as_ptr()) };
+            if ret == 0 { panic!("Error setting window title: {:?}", Error::last_os_error()); }
             
-            ret = unsafe {
-                wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: 120, Y: 40 }, COORD { X: 0, Y: 0 }, &mut self.rect_window)
-            };
-            if ret == 0 {
-                panic!("Error writing console output: {:?}", Error::last_os_error());
-            }
+            ret = unsafe { wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: 120, Y: 40 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
+            if ret == 0 { panic!("Error writing console output: {:?}", Error::last_os_error()); }
         }
     }
 
@@ -121,6 +91,7 @@ impl RustConsoleGameEngine {
 }
 
 pub trait RustConsoleGame {
+    fn name(&self) -> &str;
     fn setup(&self);
     fn update(&mut self, engine: &mut RustConsoleGameEngine, elapsed_time: f32);
 }

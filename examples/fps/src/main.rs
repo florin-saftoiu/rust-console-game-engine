@@ -1,17 +1,21 @@
 extern crate engine;
 
-struct RustConsoleGameExample {
+use engine::{RustConsoleGame, RustConsoleGameEngine};
+
+struct Fps {
     x: f32,
     y: f32,
     velocity: f32
 }
 
-impl engine::RustConsoleGame for RustConsoleGameExample {
+impl RustConsoleGame for Fps {
+    fn name(&self) -> &str { "FPS" }
+
     fn setup(&self) {
 
     }
 
-    fn update(&mut self, engine: &mut engine::RustConsoleGameEngine, elapsed_time: f32) {
+    fn update(&mut self, engine: &mut RustConsoleGameEngine, elapsed_time: f32) {
         engine.clear();
 
         self.x += self.velocity * elapsed_time;
@@ -27,12 +31,12 @@ impl engine::RustConsoleGame for RustConsoleGameExample {
 }
 
 fn main() {
-    let mut game = RustConsoleGameExample {
+    let mut game = Fps {
         x: 0f32,
         y: 0f32,
         velocity: 4f32
     };
-    let mut engine = engine::RustConsoleGameEngine::new().unwrap_or_else(|error| {
+    let mut engine = RustConsoleGameEngine::new().unwrap_or_else(|error| {
         panic!("Error creating engine: {:?}", error);
     });
     engine.run(&mut game);
