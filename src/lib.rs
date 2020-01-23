@@ -15,13 +15,19 @@ use std::os::windows::ffi::OsStrExt;
 use std::iter;
 
 pub struct RustConsoleGameEngine {
+    width: usize,
+    height: usize,
     h_console: HANDLE,
     rect_window: SMALL_RECT,
-    screen: Box<[CHAR_INFO]>
+    screen: Vec<CHAR_INFO>
 }
 
 impl RustConsoleGameEngine {
-    pub fn new() -> Result<RustConsoleGameEngine, Error> {
+    pub fn width(&self) -> usize { self.width }
+
+    pub fn height(&self) -> usize { self.height }
+
+    pub fn new(width: usize, height: usize) -> Result<RustConsoleGameEngine, Error> {
         let h_console = unsafe { processenv::GetStdHandle(STD_OUTPUT_HANDLE) };
         if h_console == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
         
@@ -29,20 +35,22 @@ impl RustConsoleGameEngine {
         let mut ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
-        let coord = COORD { X: 120, Y: 40 };
+        let coord = COORD { X: width as i16, Y: height as i16 };
         ret = unsafe { wincon::SetConsoleScreenBufferSize(h_console, coord) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
         ret = unsafe { wincon::SetConsoleActiveScreenBuffer(h_console) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
-        rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 120 - 1, Bottom: 40 - 1 };
+        rect_window = SMALL_RECT { Left: 0, Top: 0, Right: width as i16 - 1, Bottom: height as i16 - 1 };
         ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
-        let screen = Box::new(unsafe { MaybeUninit::<[CHAR_INFO; 120 * 40]>::zeroed().assume_init() });
+        let screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height];
 
         Ok(RustConsoleGameEngine {
+            width,
+            height,
             h_console,
             rect_window,
             screen
@@ -67,25 +75,25 @@ impl RustConsoleGameEngine {
             let mut ret = unsafe { wincon::SetConsoleTitleW(wide.as_ptr()) };
             if ret == 0 { panic!("Error setting window title: {:?}", Error::last_os_error()); }
             
-            ret = unsafe { wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: 120, Y: 40 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
+            ret = unsafe { wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: self.width as i16, Y: self.height as i16 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
             if ret == 0 { panic!("Error writing console output: {:?}", Error::last_os_error()); }
         }
     }
 
     pub fn clear(&mut self) {
-        for x in 0..120 {
-            for y in 0..40 {
+        for x in 0..self.width {
+            for y in 0..self.height {
                 self.draw(x, y, 0 as char, 0x0000);
             }
         }
     }
 
-    pub fn draw(&mut self, x: i32, y: i32, c: char, col: u16) {
-        if x >= 0 && x < 120 && y >= 0 && y < 40 {
+    pub fn draw(&mut self, x: usize, y: usize, c: char, col: u16) {
+        if x < self.width && y < self.height {
             unsafe {
-                *(self.screen[(y * 120 + x) as usize].Char.UnicodeChar_mut()) = c as u16;
+                *(self.screen[y * self.width + x].Char.UnicodeChar_mut()) = c as u16;
             }
-            self.screen[(y * 120 + x) as usize].Attributes = col;
+            self.screen[y * self.width + x].Attributes = col;
         }
     }
 }
