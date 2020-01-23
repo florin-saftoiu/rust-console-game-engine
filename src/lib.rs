@@ -1,14 +1,15 @@
 extern crate winapi;
 
-use winapi::shared::minwindef::TRUE;
+use winapi::shared::minwindef::{TRUE, FALSE};
 use winapi::um::winnt::HANDLE;
 use winapi::um::winbase::STD_OUTPUT_HANDLE;
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD};
+use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX};
+use winapi::um::wingdi::{FF_DONTCARE, FW_NORMAL};
 use winapi::um::processenv;
-use winapi::um::wincon;
 use std::io::Error;
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
 use std::time::Instant;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -27,7 +28,7 @@ impl RustConsoleGameEngine {
 
     pub fn height(&self) -> usize { self.height }
 
-    pub fn new(width: usize, height: usize) -> Result<RustConsoleGameEngine, Error> {
+    pub fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsoleGameEngine, Error> {
         let h_console = unsafe { processenv::GetStdHandle(STD_OUTPUT_HANDLE) };
         if h_console == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
         
@@ -40,6 +41,22 @@ impl RustConsoleGameEngine {
         if ret == 0 { return Err(Error::last_os_error()); }
 
         ret = unsafe { wincon::SetConsoleActiveScreenBuffer(h_console) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+
+        let mut face_name: [u16; 32] = Default::default();
+        let v = OsStr::new("Consolas").encode_wide().chain(iter::once(0)).collect::<Vec<u16>>();
+        for i in 0..v.len() {
+            face_name[i] = v[i];
+        }
+        let mut cfix = CONSOLE_FONT_INFOEX {
+            cbSize: mem::size_of::<CONSOLE_FONT_INFOEX>() as u32,
+            nFont: 0,
+            dwFontSize: COORD { X: font_width, Y: font_height },
+            FontFamily: FF_DONTCARE,
+            FontWeight: FW_NORMAL as u32,
+            FaceName: face_name
+        };
+        ret = unsafe { wincon::SetCurrentConsoleFontEx(h_console, FALSE, &mut cfix) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: width as i16 - 1, Bottom: height as i16 - 1 };
