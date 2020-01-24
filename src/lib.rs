@@ -6,10 +6,10 @@ use winapi::um::winnt::HANDLE;
 use winapi::um::winbase::STD_OUTPUT_HANDLE;
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD};
-use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX};
+use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX, CONSOLE_SCREEN_BUFFER_INFOEX};
 use winapi::um::wingdi::{FF_DONTCARE, FW_NORMAL};
 use winapi::um::processenv;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::mem::{self, MaybeUninit};
 use std::time::Instant;
 use std::ffi::OsStr;
@@ -59,6 +59,17 @@ impl RustConsoleGameEngine {
         };
         ret = unsafe { wincon::SetCurrentConsoleFontEx(h_console, FALSE, &mut cfix) };
         if ret == 0 { return Err(Error::last_os_error()); }
+
+        let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
+        csbix.cbSize = mem::size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
+        ret = unsafe { wincon::GetConsoleScreenBufferInfoEx(h_console, &mut csbix) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+        if width as i16 > csbix.dwMaximumWindowSize.X {
+            return Err(Error::new(ErrorKind::Other, "Width / font width too big"));
+        }
+        if height as i16 > csbix.dwMaximumWindowSize.Y {
+            return Err(Error::new(ErrorKind::Other, "Height / font height too big"));
+        }
 
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: width as i16 - 1, Bottom: height as i16 - 1 };
         ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
