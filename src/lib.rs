@@ -1,14 +1,17 @@
 extern crate winapi;
 extern crate libc;
 
+use winapi::shared::ntdef::NULL;
 use winapi::shared::minwindef::{TRUE, FALSE};
 use winapi::um::winnt::HANDLE;
-use winapi::um::winbase::STD_OUTPUT_HANDLE;
+use winapi::um::winbase::{STD_OUTPUT_HANDLE, STD_INPUT_HANDLE};
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+use winapi::um::consoleapi;
 use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD};
-use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX, CONSOLE_SCREEN_BUFFER_INFOEX};
+use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX, CONSOLE_SCREEN_BUFFER_INFOEX, ENABLE_EXTENDED_FLAGS};
 use winapi::um::wingdi::{FF_DONTCARE, FW_NORMAL};
 use winapi::um::processenv;
+use winapi::um::winuser::{self, GWL_STYLE, WS_MAXIMIZEBOX, WS_SIZEBOX, LWA_ALPHA};
 use std::io::{Error, ErrorKind};
 use std::mem::{self, MaybeUninit};
 use std::time::Instant;
@@ -20,6 +23,7 @@ pub struct RustConsoleGameEngine {
     width: usize,
     height: usize,
     h_console: HANDLE,
+    h_console_input: HANDLE,
     rect_window: SMALL_RECT,
     screen: Vec<CHAR_INFO>
 }
@@ -32,6 +36,11 @@ impl RustConsoleGameEngine {
     pub fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsoleGameEngine, Error> {
         let h_console = unsafe { processenv::GetStdHandle(STD_OUTPUT_HANDLE) };
         if h_console == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
+        if h_console == NULL { return Err(Error::new(ErrorKind::Other, "NULL console handle")); }
+
+        let h_console_input = unsafe { processenv::GetStdHandle(STD_INPUT_HANDLE) };
+        if h_console_input == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
+        if h_console_input == NULL { return Err(Error::new(ErrorKind::Other, "NULL console input handle")); }
         
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
         let mut ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
@@ -70,9 +79,24 @@ impl RustConsoleGameEngine {
         if height as i16 > csbix.dwMaximumWindowSize.Y {
             return Err(Error::new(ErrorKind::Other, "Height / font height too big"));
         }
+        csbix.bFullscreenSupported = FALSE;
+        ret = unsafe { wincon::SetConsoleScreenBufferInfoEx(h_console, &mut csbix) };
+        if ret == 0 { return Err(Error::last_os_error()); }
 
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: width as i16 - 1, Bottom: height as i16 - 1 };
         ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+
+        ret = unsafe { consoleapi::SetConsoleMode(h_console_input, ENABLE_EXTENDED_FLAGS) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+
+        let h_window = unsafe { wincon::GetConsoleWindow() };
+        let ret = unsafe { winuser::GetWindowLongW(h_window, GWL_STYLE) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+        let ret = unsafe { winuser::SetWindowLongW(h_window, GWL_STYLE, ret & !WS_MAXIMIZEBOX as i32 & !WS_SIZEBOX as i32) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+        unsafe { winuser::GetSystemMenu(h_window, TRUE) };
+        let ret = unsafe { winuser::SetLayeredWindowAttributes(h_window, 0, 255, LWA_ALPHA) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
         let screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height];
@@ -81,6 +105,7 @@ impl RustConsoleGameEngine {
             width,
             height,
             h_console,
+            h_console_input,
             rect_window,
             screen
         })
