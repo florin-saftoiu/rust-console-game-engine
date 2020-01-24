@@ -1,4 +1,5 @@
 extern crate winapi;
+extern crate libc;
 
 use winapi::shared::minwindef::{TRUE, FALSE};
 use winapi::um::winnt::HANDLE;
@@ -98,10 +99,8 @@ impl RustConsoleGameEngine {
     }
 
     pub fn clear(&mut self) {
-        for x in 0..self.width {
-            for y in 0..self.height {
-                self.draw(x, y, 0 as char, 0x0000);
-            }
+        unsafe {
+            libc::memset(self.screen.as_mut_ptr() as _, 0, self.screen.len() * mem::size_of::<CHAR_INFO>());
         }
     }
 
