@@ -112,6 +112,18 @@ impl RustConsoleGameEngine {
             self.screen[y * self.width + x].Attributes = col;
         }
     }
+    
+    pub fn draw_string(&mut self, x: usize, y: usize, s: String, col: u16) {
+        let mut i = 0;
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            unsafe {
+                *(self.screen[y * self.width + x + i].Char.UnicodeChar_mut()) = c as u16;
+            }
+            self.screen[y * self.width + x + i].Attributes = col;
+            i += 1;
+        }
+    }
 }
 
 pub trait RustConsoleGame {
