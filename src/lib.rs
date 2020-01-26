@@ -55,9 +55,7 @@ impl RustConsoleGameEngine {
 
         let mut face_name: [u16; 32] = Default::default();
         let v = OsStr::new("Consolas").encode_wide().chain(iter::once(0)).collect::<Vec<u16>>();
-        for i in 0..v.len() {
-            face_name[i] = v[i];
-        }
+        face_name[..v.len()].clone_from_slice(&v[..]);
         let mut cfix = CONSOLE_FONT_INFOEX {
             cbSize: mem::size_of::<CONSOLE_FONT_INFOEX>() as u32,
             nFont: 0,
@@ -150,14 +148,11 @@ impl RustConsoleGameEngine {
     }
     
     pub fn draw_string(&mut self, x: usize, y: usize, s: String, col: u16) {
-        let mut i = 0;
-        let mut chars = s.chars();
-        while let Some(c) = chars.next() {
+        for (i, c) in s.chars().enumerate() {
             unsafe {
                 *(self.screen[y * self.width + x + i].Char.UnicodeChar_mut()) = c as u16;
             }
             self.screen[y * self.width + x + i].Attributes = col;
-            i += 1;
         }
     }
 }
