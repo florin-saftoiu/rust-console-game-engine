@@ -16,6 +16,10 @@ impl RustConsoleGame for Fps {
     fn update(&mut self, console: &mut RustConsole, elapsed_time: f32) {
         console.clear();
 
+        if console.key('R' as usize).held {
+            self.velocity *= -1f32;
+        }
+
         self.x += self.velocity * elapsed_time;
         if self.x > console.width() as f32 {
             self.x = 0f32;

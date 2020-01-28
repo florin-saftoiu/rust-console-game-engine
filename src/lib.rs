@@ -3,7 +3,7 @@ extern crate libc;
 
 use winapi::shared::ntdef::NULL;
 use winapi::shared::minwindef::{TRUE, FALSE};
-use winapi::um::winnt::HANDLE;
+use winapi::um::winnt::{HANDLE, SHORT};
 use winapi::um::winbase::{STD_OUTPUT_HANDLE, STD_INPUT_HANDLE};
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::consoleapi;
@@ -19,6 +19,13 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::iter;
 
+#[derive(Copy, Clone)]
+pub struct KeyState {
+    pub pressed: bool,
+    pub released: bool,
+    pub held: bool
+}
+
 pub struct RustConsole {
     width: usize,
     height: usize,
@@ -26,7 +33,10 @@ pub struct RustConsole {
     #[allow(dead_code)]
     h_console_input: HANDLE,
     rect_window: SMALL_RECT,
-    screen: Vec<CHAR_INFO>
+    screen: Vec<CHAR_INFO>,
+    keys: [KeyState; 256],
+    old_key_states: [SHORT; 256],
+    new_key_states: [SHORT; 256]
 }
 
 impl RustConsole {
@@ -94,15 +104,16 @@ impl RustConsole {
         let ret = unsafe { winuser::SetLayeredWindowAttributes(h_window, 0, 255, LWA_ALPHA) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
-        let screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height];
-
         Ok(RustConsole {
             width,
             height,
             h_console,
             h_console_input,
             rect_window,
-            screen
+            screen: vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height],
+            keys: [KeyState { pressed: false, released: false, held: false }; 256],
+            old_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() },
+            new_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() }
         })
     }
 
@@ -111,9 +122,32 @@ impl RustConsole {
         if ret == 0 { panic!("Error writing console output: {:?}", Error::last_os_error()); }
     }
 
+    fn update_key_states(&mut self) {
+        for v_key in 0..256 {
+            self.new_key_states[v_key] = unsafe { winuser::GetAsyncKeyState(v_key as i32) };
+
+            self.keys[v_key].pressed = false;
+            self.keys[v_key].released = false;
+
+            if self.new_key_states[v_key] != self.old_key_states[v_key] {
+                if self.new_key_states[v_key] as u16 & 0x8000 != 0 {
+                    self.keys[v_key].pressed = !self.keys[v_key].held;
+                    self.keys[v_key].held = true;
+                } else {
+                    self.keys[v_key].released = true;
+                    self.keys[v_key].held = false;
+                }
+            }
+
+            self.old_key_states[v_key] = self.new_key_states[v_key];
+        }
+    }
+
     pub fn width(&self) -> usize { self.width }
 
     pub fn height(&self) -> usize { self.height }
+
+    pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
 
     pub fn clear(&mut self) {
         unsafe {
@@ -170,6 +204,8 @@ impl<'a> RustConsoleGameEngine<'a> {
             let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
             tp1 = tp2;
             
+            self.console.update_key_states();
+
             self.game.update(&mut self.console, elapsed_time);
             
             let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", self.game.name(), 1f32 / elapsed_time);
