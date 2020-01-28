@@ -176,7 +176,7 @@ impl RustConsole {
 
 pub trait RustConsoleGame {
     fn name(&self) -> &str;
-    fn setup(&self);
+    fn setup(&mut self);
     fn update(&mut self, console: &mut RustConsole, elapsed_time: f32);
 }
 
