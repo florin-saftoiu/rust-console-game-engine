@@ -19,7 +19,7 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::iter;
 
-pub struct RustConsoleGameEngine {
+pub struct RustConsole {
     width: usize,
     height: usize,
     h_console: HANDLE,
@@ -28,12 +28,8 @@ pub struct RustConsoleGameEngine {
     screen: Vec<CHAR_INFO>
 }
 
-impl RustConsoleGameEngine {
-    pub fn width(&self) -> usize { self.width }
-
-    pub fn height(&self) -> usize { self.height }
-
-    pub fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsoleGameEngine, Error> {
+impl RustConsole {
+    fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsole, Error> {
         let h_console = unsafe { processenv::GetStdHandle(STD_OUTPUT_HANDLE) };
         if h_console == INVALID_HANDLE_VALUE { return Err(Error::last_os_error()); }
         if h_console == NULL { return Err(Error::new(ErrorKind::Other, "NULL console handle")); }
@@ -99,7 +95,7 @@ impl RustConsoleGameEngine {
 
         let screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height];
 
-        Ok(RustConsoleGameEngine {
+        Ok(RustConsole {
             width,
             height,
             h_console,
@@ -109,28 +105,14 @@ impl RustConsoleGameEngine {
         })
     }
 
-    pub fn run(&mut self, game: &mut dyn RustConsoleGame) {
-        game.setup();
-
-        let mut tp1 = Instant::now();
-        let mut tp2;
-
-        loop {
-            tp2 = Instant::now();
-            let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
-            tp1 = tp2;
-            
-            game.update(self, elapsed_time);
-            
-            let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", game.name(), 1f32 / elapsed_time);
-            let wide: Vec<u16> = OsStr::new(&title).encode_wide().chain(iter::once(0)).collect();
-            let mut ret = unsafe { wincon::SetConsoleTitleW(wide.as_ptr()) };
-            if ret == 0 { panic!("Error setting window title: {:?}", Error::last_os_error()); }
-            
-            ret = unsafe { wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: self.width as i16, Y: self.height as i16 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
-            if ret == 0 { panic!("Error writing console output: {:?}", Error::last_os_error()); }
-        }
+    fn write_output(&mut self) {
+        let ret = unsafe { wincon::WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: self.width as i16, Y: self.height as i16 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
+        if ret == 0 { panic!("Error writing console output: {:?}", Error::last_os_error()); }
     }
+
+    pub fn width(&self) -> usize { self.width }
+
+    pub fn height(&self) -> usize { self.height }
 
     pub fn clear(&mut self) {
         unsafe {
@@ -160,5 +142,41 @@ impl RustConsoleGameEngine {
 pub trait RustConsoleGame {
     fn name(&self) -> &str;
     fn setup(&self);
-    fn update(&mut self, engine: &mut RustConsoleGameEngine, elapsed_time: f32);
+    fn update(&mut self, console: &mut RustConsole, elapsed_time: f32);
+}
+
+pub struct RustConsoleGameEngine<'a> {
+    console: RustConsole,
+    game: &'a mut dyn RustConsoleGame
+}
+
+impl<'a> RustConsoleGameEngine<'a> {
+    pub fn new(game: &'a mut dyn RustConsoleGame, width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsoleGameEngine, Error> {
+        Ok(RustConsoleGameEngine {
+            console: RustConsole::new(width, height, font_width, font_height)?,
+            game
+        })
+    }
+
+    pub fn run(&mut self) {
+        self.game.setup();
+
+        let mut tp1 = Instant::now();
+        let mut tp2;
+
+        loop {
+            tp2 = Instant::now();
+            let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
+            tp1 = tp2;
+            
+            self.game.update(&mut self.console, elapsed_time);
+            
+            let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", self.game.name(), 1f32 / elapsed_time);
+            let wide: Vec<u16> = OsStr::new(&title).encode_wide().chain(iter::once(0)).collect();
+            let ret = unsafe { wincon::SetConsoleTitleW(wide.as_ptr()) };
+            if ret == 0 { panic!("Error setting window title: {:?}", Error::last_os_error()); }
+            
+            self.console.write_output();
+        }
+    }
 }
