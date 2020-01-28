@@ -23,6 +23,7 @@ pub struct RustConsole {
     width: usize,
     height: usize,
     h_console: HANDLE,
+    #[allow(dead_code)]
     h_console_input: HANDLE,
     rect_window: SMALL_RECT,
     screen: Vec<CHAR_INFO>
