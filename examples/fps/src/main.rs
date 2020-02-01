@@ -42,6 +42,16 @@ impl RustConsoleGame for Fps {
     }
 
     fn update(&mut self, console: &mut RustConsole, elapsed_time: f32) {
+        if console.key('H' as usize).released {
+            if console.width() == 120 {
+                console.resize(180, 60);
+            } else if console.width() == 180 {
+                console.resize(60, 20);
+            } else {
+                console.resize(120, 40);
+            }
+        }
+
         if console.key('A' as usize).held {
             self.player_a -= self.speed * 0.75f32 * elapsed_time;
 

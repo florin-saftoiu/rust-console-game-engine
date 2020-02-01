@@ -149,6 +149,42 @@ impl RustConsole {
 
     pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
 
+    pub fn resize(&mut self, new_width: usize, new_height: usize) {
+        let coord = COORD { X: new_width as i16, Y: new_height as i16 };
+        let rect_window = SMALL_RECT { Left: 0, Top: 0, Right: new_width as i16 - 1, Bottom: new_height as i16 - 1 };
+
+        if new_width * new_height > self.width * self.height {
+            let mut ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
+            if ret == 0 {
+                let error = Error::last_os_error();
+                panic!("Error resizing console: {:?}", error);
+            }
+
+            ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
+            if ret == 0 {
+                let error = Error::last_os_error();
+                panic!("Error resizing console: {:?}", error);
+            }
+        } else {
+            let mut ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
+            if ret == 0 {
+                let error = Error::last_os_error();
+                panic!("Error resizing console: {:?}", error);
+            }
+
+            ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
+            if ret == 0 {
+                let error = Error::last_os_error();
+                panic!("Error resizing console: {:?}", error);
+            }
+        }
+
+        self.width = new_width;
+        self.height = new_height;
+        self.rect_window = rect_window;
+        self.screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; new_width * new_height];
+    }
+
     pub fn clear(&mut self) {
         unsafe {
             libc::memset(self.screen.as_mut_ptr() as _, 0, self.screen.len() * mem::size_of::<CHAR_INFO>());
