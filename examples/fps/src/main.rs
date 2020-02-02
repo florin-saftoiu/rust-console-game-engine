@@ -44,11 +44,11 @@ impl RustConsoleGame for Fps {
     fn update(&mut self, console: &mut RustConsole, elapsed_time: f32) {
         if console.key('H' as usize).released {
             if console.width() == 120 {
-                console.resize(180, 60);
+                console.resize(180, 60, 5, 11);
             } else if console.width() == 180 {
-                console.resize(60, 20);
+                console.resize(60, 20, 16, 32);
             } else {
-                console.resize(120, 40);
+                console.resize(120, 40, 8, 16);
             }
         }
 

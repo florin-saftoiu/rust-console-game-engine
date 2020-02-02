@@ -149,34 +149,56 @@ impl RustConsole {
 
     pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
 
-    pub fn resize(&mut self, new_width: usize, new_height: usize) {
+    pub fn resize(&mut self, new_width: usize, new_height: usize, new_font_width: i16, new_font_height: i16) {
+        let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
+        let mut ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
+        }
+
         let coord = COORD { X: new_width as i16, Y: new_height as i16 };
-        let rect_window = SMALL_RECT { Left: 0, Top: 0, Right: new_width as i16 - 1, Bottom: new_height as i16 - 1 };
+        ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
+        }
+        
+        let mut cfix = unsafe { MaybeUninit::<CONSOLE_FONT_INFOEX>::zeroed().assume_init() };
+        cfix.cbSize = mem::size_of::<CONSOLE_FONT_INFOEX>() as u32;
+        let mut ret = unsafe { wincon::GetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
+        }
+        cfix.dwFontSize = COORD { X: new_font_width, Y: new_font_height };
+        ret = unsafe { wincon::SetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
+        }
 
-        if new_width * new_height > self.width * self.height {
-            let mut ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
-            if ret == 0 {
-                let error = Error::last_os_error();
-                panic!("Error resizing console: {:?}", error);
-            }
+        let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
+        csbix.cbSize = mem::size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
+        ret = unsafe { wincon::GetConsoleScreenBufferInfoEx(self.h_console, &mut csbix) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
+        }
+        if new_width as i16 > csbix.dwMaximumWindowSize.X {
+            let error = Error::new(ErrorKind::Other, "Width / font width too big");
+            panic!("Error resizing console: {:?}", error);
+        }
+        if new_height as i16 > csbix.dwMaximumWindowSize.Y {
+            let error = Error::new(ErrorKind::Other, "Height / font height too big");
+            panic!("Error resizing console: {:?}", error);
+        }
 
-            ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
-            if ret == 0 {
-                let error = Error::last_os_error();
-                panic!("Error resizing console: {:?}", error);
-            }
-        } else {
-            let mut ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
-            if ret == 0 {
-                let error = Error::last_os_error();
-                panic!("Error resizing console: {:?}", error);
-            }
-
-            ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
-            if ret == 0 {
-                let error = Error::last_os_error();
-                panic!("Error resizing console: {:?}", error);
-            }
+        rect_window = SMALL_RECT { Left: 0, Top: 0, Right: new_width as i16 - 1, Bottom: new_height as i16 - 1 };
+        ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
+        if ret == 0 {
+            let error = Error::last_os_error();
+            panic!("Error resizing console: {:?}", error);
         }
 
         self.width = new_width;
