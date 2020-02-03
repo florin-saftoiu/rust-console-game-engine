@@ -2,12 +2,12 @@ extern crate winapi;
 extern crate libc;
 
 use winapi::shared::ntdef::NULL;
-use winapi::shared::minwindef::{TRUE, FALSE};
+use winapi::shared::minwindef::{TRUE, FALSE, DWORD};
 use winapi::um::winnt::{HANDLE, SHORT};
 use winapi::um::winbase::{STD_OUTPUT_HANDLE, STD_INPUT_HANDLE};
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::consoleapi;
-use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD};
+use winapi::um::wincontypes::{SMALL_RECT, CHAR_INFO, COORD, INPUT_RECORD, WINDOW_BUFFER_SIZE_EVENT};
 use winapi::um::wincon::{self, CONSOLE_FONT_INFOEX, CONSOLE_SCREEN_BUFFER_INFOEX, ENABLE_EXTENDED_FLAGS};
 use winapi::um::wingdi::{FF_DONTCARE, FW_NORMAL};
 use winapi::um::processenv;
@@ -29,14 +29,16 @@ pub struct KeyState {
 pub struct RustConsole {
     width: usize,
     height: usize,
+    font_width: i16,
+    font_height: i16,
     h_console: HANDLE,
-    #[allow(dead_code)]
     h_console_input: HANDLE,
     rect_window: SMALL_RECT,
     screen: Vec<CHAR_INFO>,
     keys: [KeyState; 256],
     old_key_states: [SHORT; 256],
-    new_key_states: [SHORT; 256]
+    new_key_states: [SHORT; 256],
+    needs_resize: bool
 }
 
 impl RustConsole {
@@ -107,13 +109,16 @@ impl RustConsole {
         Ok(RustConsole {
             width,
             height,
+            font_width,
+            font_height,
             h_console,
             h_console_input,
             rect_window,
             screen: vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height],
             keys: [KeyState { pressed: false, released: false, held: false }; 256],
             old_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() },
-            new_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() }
+            new_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() },
+            needs_resize: false
         })
     }
 
@@ -143,63 +148,75 @@ impl RustConsole {
         }
     }
 
+    fn flush_input_events(&self) {
+        let ret = unsafe { wincon::FlushConsoleInputBuffer(self.h_console_input) };
+        if ret == 0 { panic!("Error flushing console input: {:?}", Error::last_os_error()); }
+    }
+
+    fn handle_input_events(&mut self) {
+        let mut events: DWORD = 0;
+        let mut buffer = [unsafe { MaybeUninit::<INPUT_RECORD>::zeroed().assume_init() }; 32];
+        let mut ret = unsafe { consoleapi::GetNumberOfConsoleInputEvents(self.h_console_input, &mut events) };
+        if ret == 0 { panic!("Error getting number of console input events: {:?}", Error::last_os_error()); }
+        if events > 0 {
+            ret = unsafe { consoleapi::ReadConsoleInputW(self.h_console_input, buffer.as_mut_ptr(), events, &mut events) };
+            if ret == 0 { panic!("Error reading console input: {:?}", Error::last_os_error()); }
+        }
+
+        for i in (0..events).rev() {
+            match buffer[i as usize].EventType {
+                WINDOW_BUFFER_SIZE_EVENT => {
+                    let wbsr = unsafe { buffer[i as usize].Event.WindowBufferSizeEvent() };
+                    if wbsr.dwSize.X != self.width as i16 || wbsr.dwSize.Y != self.height as i16 {
+                        self.needs_resize = true;
+                    }
+                },
+                _ => {}
+            }
+        }
+    }
+
     pub fn width(&self) -> usize { self.width }
 
     pub fn height(&self) -> usize { self.height }
+
+    pub fn font_width(&self) -> i16 { self.font_width }
+
+    pub fn font_height(&self) -> i16 { self.font_height }
 
     pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
 
     pub fn resize(&mut self, new_width: usize, new_height: usize, new_font_width: i16, new_font_height: i16) {
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
         let mut ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
 
         let coord = COORD { X: new_width as i16, Y: new_height as i16 };
         ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error resizing console buffer: {:?}", Error::last_os_error()); }
         
         let mut cfix = unsafe { MaybeUninit::<CONSOLE_FONT_INFOEX>::zeroed().assume_init() };
         cfix.cbSize = mem::size_of::<CONSOLE_FONT_INFOEX>() as u32;
         let mut ret = unsafe { wincon::GetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error resizing getting console font info: {:?}", Error::last_os_error()); }
         cfix.dwFontSize = COORD { X: new_font_width, Y: new_font_height };
         ret = unsafe { wincon::SetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error resizing console font: {:?}", Error::last_os_error()); }
 
         let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
         csbix.cbSize = mem::size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
         ret = unsafe { wincon::GetConsoleScreenBufferInfoEx(self.h_console, &mut csbix) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error getting console extended info: {:?}", Error::last_os_error()); }
         if new_width as i16 > csbix.dwMaximumWindowSize.X {
-            let error = Error::new(ErrorKind::Other, "Width / font width too big");
-            panic!("Error resizing console: {:?}", error);
+            panic!("Error resizing console: {:?}", Error::new(ErrorKind::Other, "Width / font width too big"));
         }
         if new_height as i16 > csbix.dwMaximumWindowSize.Y {
-            let error = Error::new(ErrorKind::Other, "Height / font height too big");
-            panic!("Error resizing console: {:?}", error);
+            panic!("Error resizing console: {:?}", Error::new(ErrorKind::Other, "Height / font height too big"));
         }
 
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: new_width as i16 - 1, Bottom: new_height as i16 - 1 };
         ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
-        if ret == 0 {
-            let error = Error::last_os_error();
-            panic!("Error resizing console: {:?}", error);
-        }
+        if ret == 0 { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
 
         self.width = new_width;
         self.height = new_height;
@@ -254,6 +271,8 @@ impl<'a> RustConsoleGameEngine<'a> {
     pub fn run(&mut self) {
         self.game.setup();
 
+        self.console.flush_input_events();
+
         let mut tp1 = Instant::now();
         let mut tp2;
 
@@ -263,6 +282,13 @@ impl<'a> RustConsoleGameEngine<'a> {
             tp1 = tp2;
             
             self.console.update_key_states();
+
+            self.console.handle_input_events();
+
+            if self.console.needs_resize {
+                self.console.resize(self.console.width, self.console.height, self.console.font_width, self.console.font_height);
+                self.console.needs_resize = false;
+            }
 
             self.game.update(&mut self.console, elapsed_time);
             
