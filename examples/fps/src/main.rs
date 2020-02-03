@@ -206,7 +206,21 @@ impl RustConsoleGame for Fps {
                 console.draw(mx, my + 1, self.map.as_bytes()[my * self.map_width as usize + mx] as char, 0x000f);
             }
         }
-        console.draw(self.player_y as usize, self.player_x as usize + 1, 'P', 0x000f);
+
+        let p = if self.player_a < -(3f32 * f32::consts::PI / 4f32) {
+            '<'
+        } else if -(3f32 * f32::consts::PI / 4f32) <= self.player_a && self.player_a < -(f32::consts::PI / 4f32) {
+            '^'
+        } else if -(f32::consts::PI / 4f32) <= self.player_a && self.player_a < f32::consts::PI / 4f32 {
+            '>'
+        } else if f32::consts::PI / 4f32 <= self.player_a && self.player_a < 3f32 * f32::consts::PI / 4f32 {
+            'v'
+        } else if 3f32 * f32::consts::PI / 4f32 <= self.player_a {
+            '<'
+        } else {
+            '*'
+        };
+        console.draw(self.player_y as usize, self.player_x as usize + 1, p, 0x000f);
     }
 }
 
