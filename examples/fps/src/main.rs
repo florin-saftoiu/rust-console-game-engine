@@ -46,6 +46,8 @@ impl RustConsoleGame for Fps {
             if console.width() == 120 {
                 console.resize(180, 60, 5, 11);
             } else if console.width() == 180 {
+                console.resize(320, 240, 4, 4);
+            } else if console.width() == 320 {
                 console.resize(60, 20, 16, 32);
             } else {
                 console.resize(120, 40, 8, 16);

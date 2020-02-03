@@ -37,8 +37,7 @@ pub struct RustConsole {
     screen: Vec<CHAR_INFO>,
     keys: [KeyState; 256],
     old_key_states: [SHORT; 256],
-    new_key_states: [SHORT; 256],
-    needs_resize: bool
+    new_key_states: [SHORT; 256]
 }
 
 impl RustConsole {
@@ -55,13 +54,6 @@ impl RustConsole {
         let mut ret = unsafe { wincon::SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
-        let coord = COORD { X: width as i16, Y: height as i16 };
-        ret = unsafe { wincon::SetConsoleScreenBufferSize(h_console, coord) };
-        if ret == 0 { return Err(Error::last_os_error()); }
-
-        ret = unsafe { wincon::SetConsoleActiveScreenBuffer(h_console) };
-        if ret == 0 { return Err(Error::last_os_error()); }
-
         let mut face_name: [u16; 32] = Default::default();
         let v = OsStr::new("Consolas").encode_wide().chain(iter::once(0)).collect::<Vec<u16>>();
         face_name[..v.len()].clone_from_slice(&v[..]);
@@ -74,6 +66,13 @@ impl RustConsole {
             FaceName: face_name
         };
         ret = unsafe { wincon::SetCurrentConsoleFontEx(h_console, FALSE, &mut cfix) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+
+        let coord = COORD { X: width as i16, Y: height as i16 };
+        ret = unsafe { wincon::SetConsoleScreenBufferSize(h_console, coord) };
+        if ret == 0 { return Err(Error::last_os_error()); }
+
+        ret = unsafe { wincon::SetConsoleActiveScreenBuffer(h_console) };
         if ret == 0 { return Err(Error::last_os_error()); }
 
         let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
@@ -117,8 +116,7 @@ impl RustConsole {
             screen: vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; width * height],
             keys: [KeyState { pressed: false, released: false, held: false }; 256],
             old_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() },
-            new_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() },
-            needs_resize: false
+            new_key_states: unsafe { MaybeUninit::<[SHORT; 256]>::zeroed().assume_init() }
         })
     }
 
@@ -166,10 +164,10 @@ impl RustConsole {
         for i in (0..events).rev() {
             match buffer[i as usize].EventType {
                 WINDOW_BUFFER_SIZE_EVENT => {
-                    let wbsr = unsafe { buffer[i as usize].Event.WindowBufferSizeEvent() };
-                    if wbsr.dwSize.X != self.width as i16 || wbsr.dwSize.Y != self.height as i16 {
-                        self.needs_resize = true;
-                    }
+                    /*let wbsr = unsafe { buffer[i as usize].Event.WindowBufferSizeEvent() };
+                    self.width = wbsr.dwSize.X as usize;
+                    self.height = wbsr.dwSize.Y as usize;
+                    self.screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; self.width * self.height];*/
                 },
                 _ => {}
             }
@@ -191,17 +189,23 @@ impl RustConsole {
         let mut ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
         if ret == 0 { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
 
+        let mut face_name: [u16; 32] = Default::default();
+        let v = OsStr::new("Consolas").encode_wide().chain(iter::once(0)).collect::<Vec<u16>>();
+        face_name[..v.len()].clone_from_slice(&v[..]);
+        let mut cfix = CONSOLE_FONT_INFOEX {
+            cbSize: mem::size_of::<CONSOLE_FONT_INFOEX>() as u32,
+            nFont: 0,
+            dwFontSize: COORD { X: new_font_width, Y: new_font_height },
+            FontFamily: FF_DONTCARE,
+            FontWeight: FW_NORMAL as u32,
+            FaceName: face_name
+        };
+        ret = unsafe { wincon::SetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
+        if ret == 0 { panic!("Error resizing console font: {:?}", Error::last_os_error()); }
+
         let coord = COORD { X: new_width as i16, Y: new_height as i16 };
         ret = unsafe { wincon::SetConsoleScreenBufferSize(self.h_console, coord) };
         if ret == 0 { panic!("Error resizing console buffer: {:?}", Error::last_os_error()); }
-        
-        let mut cfix = unsafe { MaybeUninit::<CONSOLE_FONT_INFOEX>::zeroed().assume_init() };
-        cfix.cbSize = mem::size_of::<CONSOLE_FONT_INFOEX>() as u32;
-        let mut ret = unsafe { wincon::GetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
-        if ret == 0 { panic!("Error resizing getting console font info: {:?}", Error::last_os_error()); }
-        cfix.dwFontSize = COORD { X: new_font_width, Y: new_font_height };
-        ret = unsafe { wincon::SetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
-        if ret == 0 { panic!("Error resizing console font: {:?}", Error::last_os_error()); }
 
         let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
         csbix.cbSize = mem::size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
@@ -218,8 +222,12 @@ impl RustConsole {
         ret = unsafe { wincon::SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
         if ret == 0 { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
 
+        self.flush_input_events();
+
         self.width = new_width;
         self.height = new_height;
+        self.font_width = new_font_width;
+        self.font_height = new_font_height;
         self.rect_window = rect_window;
         self.screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; new_width * new_height];
     }
@@ -284,11 +292,6 @@ impl<'a> RustConsoleGameEngine<'a> {
             self.console.update_key_states();
 
             self.console.handle_input_events();
-
-            if self.console.needs_resize {
-                self.console.resize(self.console.width, self.console.height, self.console.font_width, self.console.font_height);
-                self.console.needs_resize = false;
-            }
 
             self.game.update(&mut self.console, elapsed_time);
             
