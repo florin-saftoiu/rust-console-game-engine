@@ -47,6 +47,9 @@ fn main() {
         },
         Windows::Win32::Graphics::Gdi::{
             FF_DONTCARE,
+            /*FF_MODERN,
+            TMPF_TRUETYPE,
+            TMPF_VECTOR,*/
             FW_NORMAL
         },
         Windows::Win32::UI::KeyboardAndMouseInput::GetAsyncKeyState

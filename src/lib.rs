@@ -63,6 +63,9 @@ use bindings::{
         },
         Graphics::Gdi::{
             FF_DONTCARE,
+            /*FF_MODERN,
+            TMPF_TRUETYPE,
+            TMPF_VECTOR,*/
             FW_NORMAL
         }
     }
@@ -110,7 +113,7 @@ impl RustConsole {
             cbSize: size_of::<CONSOLE_FONT_INFOEX>() as u32,
             nFont: 0,
             dwFontSize: COORD { X: font_width, Y: font_height },
-            FontFamily: FF_DONTCARE.0,
+            FontFamily: FF_DONTCARE.0, // FF_MODERN.0 | TMPF_VECTOR | TMPF_TRUETYPE
             FontWeight: FW_NORMAL,
             FaceName: face_name
         };
@@ -245,7 +248,7 @@ impl RustConsole {
             cbSize: size_of::<CONSOLE_FONT_INFOEX>() as u32,
             nFont: 0,
             dwFontSize: COORD { X: new_font_width, Y: new_font_height },
-            FontFamily: FF_DONTCARE.0,
+            FontFamily: FF_DONTCARE.0, // FF_MODERN.0 | TMPF_VECTOR | TMPF_TRUETYPE
             FontWeight: FW_NORMAL as u32,
             FaceName: face_name
         };
