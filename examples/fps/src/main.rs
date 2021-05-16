@@ -180,9 +180,9 @@ impl RustConsoleGame for Fps {
 
             for y in 0..console.height() {
                 if (y as i32) <= ceiling {
-                    console.draw(x, y, ' ', 0x000f);
+                    console.draw(x, y, ' ', RustConsole::FG_WHITE);
                 } else if y as i32 > ceiling && y as i32 <= floor {
-                    console.draw(x, y, shade, 0x000f);
+                    console.draw(x, y, shade, RustConsole::FG_WHITE);
                 } else {
                     let b = 1f32 - ((y as f32 - console.height() as f32 / 2f32) / (console.height() as f32 / 2f32));
                     let floor_shade = if b < 0.25f32 {
@@ -196,7 +196,7 @@ impl RustConsoleGame for Fps {
                     } else {
                         ' '
                     };
-                    console.draw(x, y, floor_shade, 0x000f);
+                    console.draw(x, y, floor_shade, RustConsole::FG_WHITE);
                 }
             }
         }
@@ -205,7 +205,7 @@ impl RustConsoleGame for Fps {
 
         for mx in 0..self.map_width as usize {
             for my in 0..self.map_height as usize {
-                console.draw(mx, my + 1, self.map.as_bytes()[my * self.map_width as usize + mx] as char, 0x000f);
+                console.draw(mx, my + 1, self.map.as_bytes()[my * self.map_width as usize + mx] as char, RustConsole::FG_WHITE);
             }
         }
 
@@ -222,7 +222,7 @@ impl RustConsoleGame for Fps {
         } else {
             '*'
         };
-        console.draw(self.player_y as usize, self.player_x as usize + 1, p, 0x000f);
+        console.draw(self.player_y as usize, self.player_x as usize + 1, p, RustConsole::FG_WHITE);
     }
 }
 
