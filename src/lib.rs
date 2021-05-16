@@ -335,10 +335,19 @@ impl RustConsole {
         }
     }
     
-    pub fn draw_string(&mut self, x: usize, y: usize, s: String, col: u16) {
+    pub fn draw_string(&mut self, x: usize, y: usize, s: &str, col: u16) {
         for (i, c) in s.chars().enumerate() {
             self.screen[y * self.width + x + i].Char.UnicodeChar = c as u16;
             self.screen[y * self.width + x + i].Attributes = col;
+        }
+    }
+
+    pub fn draw_string_alpha(&mut self, x: usize, y: usize, s: &str, col: u16) {
+        for (i, c) in s.chars().enumerate() {
+            if c != ' ' {
+                self.screen[y * self.width + x + i].Char.UnicodeChar = c as u16;
+                self.screen[y * self.width + x + i].Attributes = col;
+            }
         }
     }
 }

@@ -201,7 +201,7 @@ impl RustConsoleGame for Fps {
             }
         }
 
-        console.draw_string(0, 0, format!("x={:3.2},y={:3.2},a={:3.2}\u{00b0}", self.player_x, self.player_y, self.player_a * 180f32 / f32::consts::PI), 0x000f);
+        console.draw_string(0, 0, format!("x={:3.2},y={:3.2},a={:3.2}\u{00b0}", self.player_x, self.player_y, self.player_a * 180f32 / f32::consts::PI).as_str(), 0x000f);
 
         for mx in 0..self.map_width as usize {
             for my in 0..self.map_height as usize {
