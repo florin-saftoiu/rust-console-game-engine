@@ -1,5 +1,3 @@
-extern crate engine;
-
 use engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine};
 use std::f32;
 

@@ -1,5 +1,3 @@
-extern crate engine;
-
 use engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine, VK_UP, VK_LEFT, VK_RIGHT};
 
 use std::collections::VecDeque;
