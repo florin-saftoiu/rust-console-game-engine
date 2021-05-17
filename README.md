@@ -6,4 +6,4 @@ For now, it only works on Windows.
 
 Usage
 -----
-`cargo build` the First Person Shooter example from **examples/fps/**. The actual engine is in **src/lib.rs**.
+`cargo build` one of the examples from **examples/\*\***. The actual engine is in **src/lib.rs**.
