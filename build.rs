@@ -43,7 +43,10 @@ fn main() {
             GWL_STYLE,
             WS_MAXIMIZEBOX,
             WS_SIZEBOX,
-            LWA_ALPHA
+            LWA_ALPHA,
+            VK_UP,
+            VK_LEFT,
+            VK_RIGHT
         },
         Windows::Win32::Graphics::Gdi::{
             FF_DONTCARE,

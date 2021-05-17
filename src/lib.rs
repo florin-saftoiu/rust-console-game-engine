@@ -71,6 +71,12 @@ use bindings::{
     }
 };
 
+pub use bindings::Windows::Win32::UI::WindowsAndMessaging::{
+    VK_UP,
+    VK_LEFT,
+    VK_RIGHT
+};
+
 #[derive(Copy, Clone)]
 pub struct KeyState {
     pub pressed: bool,
