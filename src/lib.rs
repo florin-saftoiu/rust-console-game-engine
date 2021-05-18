@@ -356,6 +356,62 @@ impl RustConsole {
             }
         }
     }
+
+    pub fn draw_line(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, c: char, col: u16) {
+        let dx = x2 as isize - x1 as isize;
+        let dy = y2 as isize - y1 as isize;
+        let dx1 = dx.abs();
+        let dy1 = dy.abs();
+        let mut px = 2 * dy1 - dx1;
+        let mut py = 2 * dx1 - dy1;
+        if dy1 <= dx1 {
+            let (mut x, mut y, xe) = if dx >= 0 {
+                (x1, y1, x2)
+            } else {
+                (x2, y2, x1)
+            };
+
+            self.draw(x, y, c, col);
+
+            for _i in 0..xe {
+                x += 1;
+                if px < 0 {
+                    px = px + 2 * dy1;
+                } else {
+                    if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
+                        y += 1;
+                    } else {
+                        y -= 1;
+                    }
+                    px = px + 2 * (dy1 - dx1);
+                }
+                self.draw(x, y, c, col);
+            }
+        } else {
+            let (mut x, mut y, ye) = if dy >= 0 {
+                (x1, y1, y2)
+            } else {
+                (x2, y2, y1)
+            };
+
+            self.draw(x, y, c, col);
+
+            for _i in 0..ye {
+                y += 1;
+                if py <= 0 {
+                    py = py + 2 * dx1;
+                } else {
+                    if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
+                        x += 1;
+                    } else {
+                        x -= 1;
+                    }
+                    py = py + 2 * (dx1 - dy1);
+                }
+                self.draw(x, y, c, col);
+            }
+        }
+    }
 }
 
 pub trait RustConsoleGame {
