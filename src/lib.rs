@@ -426,6 +426,32 @@ impl RustConsole {
         self.draw_line(x2, y2, x3, y3, c, col);
         self.draw_line(x3, y3, x1, y1, c, col);
     }
+
+    pub fn draw_circle(&mut self, xc: usize, yc: usize, r: usize, c: char, col: u16) {
+        let mut x = 0;
+        let mut y = r;
+        let mut p = 3 - 2 * r as isize;
+        if r == 0 { return; }
+
+        while y >= x {
+            self.draw(xc - x, yc - y, c, col); // upper left left
+			self.draw(xc - y, yc - x, c, col); // upper upper left
+			self.draw(xc + y, yc - x, c, col); // upper upper right
+			self.draw(xc + x, yc - y, c, col); // upper right right
+			self.draw(xc - x, yc + y, c, col); // lower left left
+			self.draw(xc - y, yc + x, c, col); // lower lower left
+			self.draw(xc + y, yc + x, c, col); // lower lower right
+			self.draw(xc + x, yc + y, c, col); // lower right right
+			if p < 0 {
+                p += 4 * x as isize + 6;
+                x += 1;
+            } else {
+                p += 4 * (x as isize - y as isize) + 10;
+                x += 1;
+                y -= 1;
+            }
+        }
+    }
 }
 
 pub trait RustConsoleGame {
