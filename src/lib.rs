@@ -373,7 +373,7 @@ impl RustConsole {
 
             self.draw(x, y, c, col);
 
-            for _i in 0..xe {
+            for _i in x..xe {
                 x += 1;
                 if px < 0 {
                     px = px + 2 * dy1;
@@ -396,7 +396,7 @@ impl RustConsole {
 
             self.draw(x, y, c, col);
 
-            for _i in 0..ye {
+            for _i in y..ye {
                 y += 1;
                 if py <= 0 {
                     py = py + 2 * dx1;
@@ -411,6 +411,12 @@ impl RustConsole {
                 self.draw(x, y, c, col);
             }
         }
+    }
+
+    pub fn draw_triangle(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, x3: usize, y3: usize, c: char, col: u16) {
+        self.draw_line(x1, y1, x2, y2, c, col);
+        self.draw_line(x2, y2, x3, y3, c, col);
+        self.draw_line(x3, y3, x1, y1, c, col);
     }
 }
 
