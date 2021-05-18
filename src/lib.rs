@@ -340,6 +340,14 @@ impl RustConsole {
             self.screen[y * self.width + x].Attributes = col;
         }
     }
+
+    pub fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, c: char, col: u16) {
+        for x in x1..x2 {
+            for y in y1..y2 {
+                self.draw(x, y, c, col);
+            }
+        }
+    }
     
     pub fn draw_string(&mut self, x: usize, y: usize, s: &str, col: u16) {
         for (i, c) in s.chars().enumerate() {
