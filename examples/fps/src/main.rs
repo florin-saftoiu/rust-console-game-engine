@@ -1,4 +1,4 @@
-use engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine};
+use rust_console_game_engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine};
 use std::f32;
 
 struct Fps {

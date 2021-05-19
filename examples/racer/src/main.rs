@@ -1,4 +1,4 @@
-use engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine, VK_UP, VK_LEFT, VK_RIGHT};
+use rust_console_game_engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine, VK_UP, VK_LEFT, VK_RIGHT};
 
 use std::collections::VecDeque;
 
