@@ -1,7 +1,12 @@
 [package]
-name = "engine"
+name = "rust-console-game-engine"
 version = "0.2.0"
+description = "Console game engine for Rust, heavily inspired by Javidx9's One Lone Coder Console Game Engine (https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h)"
+license = "GPL-3.0-only"
+readme = "README.md"
 authors = ["Florin Saftoiu <florin.saftoiu@soft-to-you.com>"]
+repository = "https://github.com/florin-saftoiu/rust-console-game-engine.git"
+homepage = "https://github.com/florin-saftoiu/rust-console-game-engine"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

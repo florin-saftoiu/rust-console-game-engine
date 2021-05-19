@@ -7,14 +7,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb58b6451e8c2a812ad979ed1d83378caa5e927eef2622017a45f251457c2c9d"
 
 [[package]]
-name = "engine"
-version = "0.2.0"
-dependencies = [
- "libc",
- "windows",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -42,7 +34,15 @@ dependencies = [
 name = "racer"
 version = "0.1.0"
 dependencies = [
- "engine",
+ "rust-console-game-engine",
+]
+
+[[package]]
+name = "rust-console-game-engine"
+version = "0.2.0"
+dependencies = [
+ "libc",
+ "windows",
 ]
 
 [[package]]
