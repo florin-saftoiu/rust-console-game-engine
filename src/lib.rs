@@ -131,17 +131,17 @@ impl RustConsole {
     pub const BG_MAGENTA: u16 = 0x00d0;
     pub const BG_YELLOW: u16 = 0x00e0;
     pub const BG_WHITE: u16 = 0x00f0;
-
+    
     pub const PIXEL_SOLID: char = '\u{2588}';
     pub const PIXEL_THREEQUARTER: char = '\u{2593}';
     pub const PIXEL_HALF: char  = '\u{2592}';
     pub const PIXEL_QUARTER: char = '\u{2591}';
-
+    
     fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsole, Error> {
         let h_console = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
         if h_console.is_invalid() { return Err(Error::last_os_error()); }
         if h_console.is_null() { return Err(Error::new(ErrorKind::Other, "NULL console handle")); }
-
+        
         let h_console_input = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
         if h_console_input.is_invalid() { return Err(Error::last_os_error()); }
         if h_console_input.is_null() { return Err(Error::new(ErrorKind::Other, "NULL console input handle")); }
@@ -149,7 +149,7 @@ impl RustConsole {
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
         let mut ret = unsafe { SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         let mut face_name: [u16; 32] = Default::default();
         let v = OsStr::new("Consolas").encode_wide().chain(once(0)).collect::<Vec<u16>>();
         face_name[..v.len()].clone_from_slice(&v[..]);
@@ -163,14 +163,14 @@ impl RustConsole {
         };
         ret = unsafe { SetCurrentConsoleFontEx(h_console, FALSE, &mut cfix) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         let coord = COORD { X: width as i16, Y: height as i16 };
         ret = unsafe { SetConsoleScreenBufferSize(h_console, coord) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         ret = unsafe { SetConsoleActiveScreenBuffer(h_console) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
         csbix.cbSize = size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
         ret = unsafe { GetConsoleScreenBufferInfoEx(h_console, &mut csbix) };
@@ -184,14 +184,14 @@ impl RustConsole {
         csbix.bFullscreenSupported = FALSE;
         ret = unsafe { SetConsoleScreenBufferInfoEx(h_console, &mut csbix) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: width as i16 - 1, Bottom: height as i16 - 1 };
         ret = unsafe { SetConsoleWindowInfo(h_console, TRUE, &rect_window) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         ret = unsafe { SetConsoleMode(h_console_input, CONSOLE_MODE::from(ENABLE_EXTENDED_FLAGS)) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         let h_window = unsafe { GetConsoleWindow() };
         let ret = unsafe { GetWindowLongW(h_window, GWL_STYLE) };
         if ret == 0 { return Err(Error::last_os_error()); }
@@ -200,7 +200,7 @@ impl RustConsole {
         unsafe { GetSystemMenu(h_window, TRUE) };
         let ret = unsafe { SetLayeredWindowAttributes(h_window, 0, 255, LWA_ALPHA) };
         if !ret.as_bool() { return Err(Error::last_os_error()); }
-
+        
         Ok(RustConsole {
             width,
             height,
@@ -215,19 +215,19 @@ impl RustConsole {
             new_key_states: unsafe { MaybeUninit::<[i16; 256]>::zeroed().assume_init() }
         })
     }
-
+    
     fn write_output(&mut self) {
         let ret = unsafe { WriteConsoleOutputW(self.h_console, self.screen.as_ptr(), COORD { X: self.width as i16, Y: self.height as i16 }, COORD { X: 0, Y: 0 }, &mut self.rect_window) };
         if !ret.as_bool() { panic!("Error writing console output: {:?}", Error::last_os_error()); }
     }
-
+    
     fn update_key_states(&mut self) {
         for v_key in 0..256 {
             self.new_key_states[v_key] = unsafe { GetAsyncKeyState(v_key as i32) };
-
+            
             self.keys[v_key].pressed = false;
             self.keys[v_key].released = false;
-
+            
             if self.new_key_states[v_key] != self.old_key_states[v_key] {
                 if self.new_key_states[v_key] as u16 & 0x8000 != 0 {
                     self.keys[v_key].pressed = !self.keys[v_key].held;
@@ -237,16 +237,16 @@ impl RustConsole {
                     self.keys[v_key].held = false;
                 }
             }
-
+            
             self.old_key_states[v_key] = self.new_key_states[v_key];
         }
     }
-
+    
     fn flush_input_events(&self) {
         let ret = unsafe { FlushConsoleInputBuffer(self.h_console_input) };
         if !ret.as_bool() { panic!("Error flushing console input: {:?}", Error::last_os_error()); }
     }
-
+    
     fn handle_input_events(&mut self) {
         let mut events = 0;
         let mut buffer = [unsafe { MaybeUninit::<INPUT_RECORD>::zeroed().assume_init() }; 32];
@@ -256,7 +256,7 @@ impl RustConsole {
             ret = unsafe { ReadConsoleInputW(self.h_console_input, buffer.as_mut_ptr(), events, &mut events) };
             if !ret.as_bool() { panic!("Error reading console input: {:?}", Error::last_os_error()); }
         }
-
+        
         for i in (0..events).rev() {
             match buffer[i as usize].EventType as u32 {
                 WINDOW_BUFFER_SIZE_EVENT => {
@@ -269,22 +269,22 @@ impl RustConsole {
             }
         }
     }
-
+    
     pub fn width(&self) -> usize { self.width }
-
+    
     pub fn height(&self) -> usize { self.height }
-
+    
     pub fn font_width(&self) -> i16 { self.font_width }
-
+    
     pub fn font_height(&self) -> i16 { self.font_height }
-
+    
     pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
-
+    
     pub fn resize(&mut self, new_width: usize, new_height: usize, new_font_width: i16, new_font_height: i16) {
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };
         let mut ret = unsafe { SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
         if !ret.as_bool() { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
-
+        
         let mut face_name: [u16; 32] = Default::default();
         let v = OsStr::new("Consolas").encode_wide().chain(once(0)).collect::<Vec<u16>>();
         face_name[..v.len()].clone_from_slice(&v[..]);
@@ -298,11 +298,11 @@ impl RustConsole {
         };
         ret = unsafe { SetCurrentConsoleFontEx(self.h_console, FALSE, &mut cfix) };
         if !ret.as_bool() { panic!("Error resizing console font: {:?}", Error::last_os_error()); }
-
+        
         let coord = COORD { X: new_width as i16, Y: new_height as i16 };
         ret = unsafe { SetConsoleScreenBufferSize(self.h_console, coord) };
         if !ret.as_bool() { panic!("Error resizing console buffer: {:?}", Error::last_os_error()); }
-
+        
         let mut csbix = unsafe { MaybeUninit::<CONSOLE_SCREEN_BUFFER_INFOEX>::zeroed().assume_init() };
         csbix.cbSize = size_of::<CONSOLE_SCREEN_BUFFER_INFOEX>() as u32;
         ret = unsafe { GetConsoleScreenBufferInfoEx(self.h_console, &mut csbix) };
@@ -313,13 +313,13 @@ impl RustConsole {
         if new_height as i16 > csbix.dwMaximumWindowSize.Y {
             panic!("Error resizing console: {:?}", Error::new(ErrorKind::Other, "Height / font height too big"));
         }
-
+        
         rect_window = SMALL_RECT { Left: 0, Top: 0, Right: new_width as i16 - 1, Bottom: new_height as i16 - 1 };
         ret = unsafe { SetConsoleWindowInfo(self.h_console, TRUE, &rect_window) };
         if !ret.as_bool() { panic!("Error resizing console window: {:?}", Error::last_os_error()); }
-
+        
         self.flush_input_events();
-
+        
         self.width = new_width;
         self.height = new_height;
         self.font_width = new_font_width;
@@ -327,20 +327,20 @@ impl RustConsole {
         self.rect_window = rect_window;
         self.screen = vec![unsafe { MaybeUninit::<CHAR_INFO>::zeroed().assume_init() }; new_width * new_height];
     }
-
+    
     pub fn clear(&mut self) {
         unsafe {
             memset(self.screen.as_mut_ptr() as _, 0, self.screen.len() * size_of::<CHAR_INFO>());
         }
     }
-
+    
     pub fn draw(&mut self, x: usize, y: usize, c: char, col: u16) {
         if x < self.width && y < self.height {
             self.screen[y * self.width + x].Char.UnicodeChar = c as u16;
             self.screen[y * self.width + x].Attributes = col;
         }
     }
-
+    
     pub fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, c: char, col: u16) {
         for x in x1..x2 {
             for y in y1..y2 {
@@ -355,7 +355,7 @@ impl RustConsole {
             self.screen[y * self.width + x + i].Attributes = col;
         }
     }
-
+    
     pub fn draw_string_alpha(&mut self, x: usize, y: usize, s: &str, col: u16) {
         for (i, c) in s.chars().enumerate() {
             if c != ' ' {
@@ -364,7 +364,7 @@ impl RustConsole {
             }
         }
     }
-
+    
     pub fn draw_line(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, c: char, col: u16) {
         let dx = x2 as isize - x1 as isize;
         let dy = y2 as isize - y1 as isize;
@@ -378,9 +378,9 @@ impl RustConsole {
             } else {
                 (x2, y2, x1)
             };
-
+            
             self.draw(x, y, c, col);
-
+            
             for _i in x..xe {
                 x += 1;
                 if px < 0 {
@@ -401,9 +401,9 @@ impl RustConsole {
             } else {
                 (x2, y2, y1)
             };
-
+            
             self.draw(x, y, c, col);
-
+            
             for _i in y..ye {
                 y += 1;
                 if py <= 0 {
@@ -420,17 +420,17 @@ impl RustConsole {
             }
         }
     }
-
+    
     pub fn draw_triangle(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, x3: usize, y3: usize, c: char, col: u16) {
         self.draw_line(x1, y1, x2, y2, c, col);
         self.draw_line(x2, y2, x3, y3, c, col);
         self.draw_line(x3, y3, x1, y1, c, col);
     }
-
+    
     pub fn fill_triangle(&mut self, mut x1: usize, mut y1: usize, mut x2: usize, mut y2: usize, mut x3: usize, mut y3: usize, c: char, col: u16) {
         let mut changed1 = false;
         let mut changed2 = false;
-
+        
         // sort vertices
         if y1 > y2 {
             swap(&mut y1, &mut y2);
@@ -444,7 +444,7 @@ impl RustConsole {
             swap(&mut y2, &mut y3);
             swap(&mut x2, &mut x3);
         }
-
+        
         // starting points
         let mut t1x = x1 as isize;
         let mut t2x = x1 as isize;
@@ -457,7 +457,7 @@ impl RustConsole {
             1
         };
         let mut dy1 = y2 as isize - y1 as isize;
-
+        
         let mut dx2 = x3 as isize - x1 as isize;
         let signx2 = if dx2 < 0 {
             dx2 = -dx2;
@@ -466,7 +466,7 @@ impl RustConsole {
             1
         };
         let mut dy2 = y3 as isize - y1 as isize;
-
+        
         if dy1 > dx1 {
             swap(&mut dx1, & mut dy1);
             changed1 = true;
@@ -475,11 +475,11 @@ impl RustConsole {
             swap(&mut dy2, &mut dx2);
             changed2 = true;
         }
-
+        
         let mut e2 = dx2 >> 1;
         if y1 != y2 { // not flat top, so do the first half
             let mut e1 = dx1 >> 1;
-
+            
             for mut i in 0..dx1 {
                 let mut t1xp = 0;
                 let mut t2xp = 0;
@@ -541,7 +541,7 @@ impl RustConsole {
                 for j in minx..=maxx {
                     self.draw(j as usize, y, c, col);
                 }
-
+                
                 // now increase y
                 if !changed1 {
                     t1x += signx1;
@@ -568,7 +568,7 @@ impl RustConsole {
         };
         dy1 = y3 as isize - y2 as isize;
         t1x = x2 as isize;
-
+        
         if dy1 > dx1 {
             swap(&mut dy1, &mut dx1);
             changed1 = true;
@@ -576,7 +576,7 @@ impl RustConsole {
             changed1 = false;
         }
         let mut e1 = dx1 >> 1;
-
+        
         for mut i in 0..=dx1 {
             let mut t1xp = 0;
             let mut t2xp = 0;
@@ -641,7 +641,7 @@ impl RustConsole {
             for j in minx..=maxx {
                 self.draw(j as usize, y, c, col);
             }
-
+            
             // now increase y
             if !changed1 {
                 t1x += signx1;
@@ -657,23 +657,23 @@ impl RustConsole {
             }
         }
     }
-
+    
     pub fn draw_circle(&mut self, xc: usize, yc: usize, r: usize, c: char, col: u16) {
         let mut x = 0;
         let mut y = r;
         let mut p = 3 - 2 * r as isize;
         if r == 0 { return; }
-
+        
         while y >= x {
             self.draw(xc - x, yc - y, c, col); // upper left left
-			self.draw(xc - y, yc - x, c, col); // upper upper left
-			self.draw(xc + y, yc - x, c, col); // upper upper right
-			self.draw(xc + x, yc - y, c, col); // upper right right
-			self.draw(xc - x, yc + y, c, col); // lower left left
-			self.draw(xc - y, yc + x, c, col); // lower lower left
-			self.draw(xc + y, yc + x, c, col); // lower lower right
-			self.draw(xc + x, yc + y, c, col); // lower right right
-			if p < 0 {
+            self.draw(xc - y, yc - x, c, col); // upper upper left
+            self.draw(xc + y, yc - x, c, col); // upper upper right
+            self.draw(xc + x, yc - y, c, col); // upper right right
+            self.draw(xc - x, yc + y, c, col); // lower left left
+            self.draw(xc - y, yc + x, c, col); // lower lower left
+            self.draw(xc + y, yc + x, c, col); // lower lower right
+            self.draw(xc + x, yc + y, c, col); // lower right right
+            if p < 0 {
                 p += 4 * x as isize + 6;
                 x += 1;
             } else {
@@ -703,24 +703,24 @@ impl<'a> RustConsoleGameEngine<'a> {
             game
         })
     }
-
+    
     pub fn run(&mut self) {
         self.game.setup();
-
+        
         self.console.flush_input_events();
-
+        
         let mut tp1 = Instant::now();
         let mut tp2;
-
+        
         loop {
             tp2 = Instant::now();
             let elapsed_time = tp2.duration_since(tp1).as_secs_f32();
             tp1 = tp2;
             
             self.console.update_key_states();
-
+            
             self.console.handle_input_events();
-
+            
             self.game.update(&mut self.console, elapsed_time);
             
             let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", self.game.name(), 1f32 / elapsed_time);
