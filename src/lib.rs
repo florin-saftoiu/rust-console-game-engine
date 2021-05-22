@@ -683,6 +683,37 @@ impl RustConsole {
             }
         }
     }
+
+    pub fn fill_circle(&mut self, xc: usize, yc: usize, r: usize, c: char, col: u16) {
+        let mut x = 0;
+        let mut y = r;
+        let mut p = 3 - 2 * r as isize;
+        if r == 0 { return; }
+        
+        while y >= x {
+            for i in xc - x..=xc + x {
+                self.draw(i, yc - y, c, col);
+            }
+            for i in xc - y..=xc + y {
+                self.draw(i, yc - x, c, col);
+            }
+            for i in xc - x..=xc + x {
+                self.draw(i, yc + y, c, col);
+            }
+            for i in xc - y..=xc + y {
+                self.draw(i, yc + x, c, col);
+            }
+
+            if p < 0 {
+                p += 4 * x as isize + 6;
+                x += 1;
+            } else {
+                p += 4 * (x as isize - y as isize) + 10;
+                x += 1;
+                y -= 1;
+            }
+        }
+    }
 }
 
 pub trait RustConsoleGame {
