@@ -1,5 +1,5 @@
 use std::io::{Error, ErrorKind};
-use std::mem::{size_of, MaybeUninit};
+use std::mem::{swap, size_of, MaybeUninit};
 use std::time::Instant;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -425,6 +425,237 @@ impl RustConsole {
         self.draw_line(x1, y1, x2, y2, c, col);
         self.draw_line(x2, y2, x3, y3, c, col);
         self.draw_line(x3, y3, x1, y1, c, col);
+    }
+
+    pub fn fill_triangle(&mut self, mut x1: usize, mut y1: usize, mut x2: usize, mut y2: usize, mut x3: usize, mut y3: usize, c: char, col: u16) {
+        let mut changed1 = false;
+        let mut changed2 = false;
+
+        // sort vertices
+        if y1 > y2 {
+            swap(&mut y1, &mut y2);
+            swap(&mut x1, &mut x2);
+        }
+        if y1 > y3 {
+            swap(&mut y1, &mut y3);
+            swap(&mut x1, &mut x3);
+        }
+        if y2 > y3 {
+            swap(&mut y2, &mut y3);
+            swap(&mut x2, &mut x3);
+        }
+
+        // starting points
+        let mut t1x = x1 as isize;
+        let mut t2x = x1 as isize;
+        let mut y = y1;
+        let mut dx1 = x2 as isize - x1 as isize;
+        let signx1 = if dx1 < 0 {
+            dx1 = -dx1;
+            -1
+        } else {
+            1
+        };
+        let mut dy1 = y2 as isize - y1 as isize;
+
+        let mut dx2 = x3 as isize - x1 as isize;
+        let signx2 = if dx2 < 0 {
+            dx2 = -dx2;
+            -1
+        } else {
+            1
+        };
+        let mut dy2 = y3 as isize - y1 as isize;
+
+        if dy1 > dx1 {
+            swap(&mut dx1, & mut dy1);
+            changed1 = true;
+        }
+        if dy2 > dx2 {
+            swap(&mut dy2, &mut dx2);
+            changed2 = true;
+        }
+
+        let mut e2 = dx2 >> 1;
+        if y1 != y2 { // not flat top, so do the first half
+            let mut e1 = dx1 >> 1;
+
+            for mut i in 0..dx1 {
+                let mut t1xp = 0;
+                let mut t2xp = 0;
+                let (mut minx, mut maxx) = if t1x < t2x {
+                    (t1x, t2x)
+                } else {
+                    (t2x, t1x)
+                };
+                // process first line until y value is about to change
+                'first_line_1: while i < dx1 {
+                    i += 1;
+                    e1 += dy1;
+                    while e1 >= dx1 {
+                        e1 -= dx1;
+                        if changed1 {
+                            t1xp = signx1;
+                        } else {
+                            break 'first_line_1;
+                        }
+                    }
+                    if changed1 {
+                        break 'first_line_1;
+                    } else {
+                        t1x += signx1;
+                    }
+                }
+                
+                // process second line until y value is about to change
+                'second_line_1: loop {
+                    e2 += dy2;
+                    while e2 >= dx2 {
+                        e2 -= dx2;
+                        if changed2 {
+                            t2xp = signx2;
+                        } else {
+                            break 'second_line_1;
+                        }
+                    }
+                    if changed2 {
+                        break 'second_line_1;
+                    } else {
+                        t2x += signx2;
+                    }
+                }
+                
+                if minx > t1x {
+                    minx = t1x;
+                }
+                if minx > t2x {
+                    minx = t2x;
+                }
+                if maxx < t1x {
+                    maxx = t1x;
+                }
+                if maxx < t2x {
+                    maxx = t2x;
+                }
+                // draw line from min to max points found on the y
+                for j in minx..=maxx {
+                    self.draw(j as usize, y, c, col);
+                }
+
+                // now increase y
+                if !changed1 {
+                    t1x += signx1;
+                }
+                t1x += t1xp;
+                if !changed2 {
+                    t2x += signx2;
+                }
+                t2x += t2xp;
+                y += 1;
+                if y == y2 {
+                    break;
+                }
+            }
+        }
+        
+        // now, do the second half
+        dx1 = x3 as isize - x2 as isize;
+        let signx1 = if dx1 < 0 {
+            dx1 = -dx1;
+            -1
+        } else {
+            1
+        };
+        dy1 = y3 as isize - y2 as isize;
+        t1x = x2 as isize;
+
+        if dy1 > dx1 {
+            swap(&mut dy1, &mut dx1);
+            changed1 = true;
+        } else {
+            changed1 = false;
+        }
+        let mut e1 = dx1 >> 1;
+
+        for mut i in 0..=dx1 {
+            let mut t1xp = 0;
+            let mut t2xp = 0;
+            let (mut minx, mut maxx) = if t1x < t2x {
+                (t1x, t2x)
+            } else {
+                (t2x, t1x)
+            };
+            // process first line until y value is about to change
+            'first_line_2: while i < dx1 {
+                e1 += dy1;
+                while e1 >= dx1 {
+                    e1 -= dx1;
+                    if changed1 {
+                        t1xp = signx1;
+                        break;
+                    } else {
+                        break 'first_line_2;
+                    }
+                }
+                if changed1 {
+                    break 'first_line_2;
+                } else {
+                    t1x += signx1;
+                }
+                if i < dx1 {
+                    i += 1;
+                }
+            }
+            
+            // process second line until y value is about to change
+            'second_line_2: while t2x != x3 as isize {
+                e2 += dy2;
+                while e2 >= dx2 {
+                    e2 -= dx2;
+                    if changed2 {
+                        t2xp = signx2;
+                    } else {
+                        break 'second_line_2;
+                    }
+                }
+                if changed2 {
+                    break 'second_line_2;
+                } else {
+                    t2x += signx2;
+                }
+            }
+            
+            if minx > t1x {
+                minx = t1x;
+            }
+            if minx > t2x {
+                minx = t2x;
+            }
+            if maxx < t1x {
+                maxx = t1x;
+            }
+            if maxx < t2x {
+                maxx = t2x;
+            }
+            // draw line from min to max points found on the y
+            for j in minx..=maxx {
+                self.draw(j as usize, y, c, col);
+            }
+
+            // now increase y
+            if !changed1 {
+                t1x += signx1;
+            }
+            t1x += t1xp;
+            if !changed2 {
+                t2x += signx2;
+            }
+            t2x += t2xp;
+            y += 1;
+            if y > y3 {
+                return;
+            }
+        }
     }
 
     pub fn draw_circle(&mut self, xc: usize, yc: usize, r: usize, c: char, col: u16) {
