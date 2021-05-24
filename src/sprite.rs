@@ -1,6 +1,8 @@
 use super::RustConsole;
 
-use std::io::Error;
+use std::{io::Error, mem::size_of};
+use std::io::Read;
+use std::fs::File;
 
 pub struct RustConsoleSprite {
     width: usize,
@@ -16,6 +18,25 @@ impl RustConsoleSprite {
             height: h,
             glyphs: vec![' '; w * h],
             colors: vec![RustConsole::FG_BLACK; w * h]
+        })
+    }
+
+    pub fn from_path(path: &str) -> Result<RustConsoleSprite, Error> {
+        let mut f = File::open(path)?;
+        let mut buffer = [0; size_of::<u32>()];
+        f.read_exact(&mut buffer)?;
+        let w = u32::from_le_bytes(buffer) as usize;
+        f.read_exact(&mut buffer)?;
+        let h = u32::from_le_bytes(buffer) as usize;
+        let mut colors = vec![0u8; w * h];
+        f.read_exact(&mut colors)?;
+        let mut glyphs = vec![0u8; w * h];
+        f.read_exact(&mut glyphs)?;
+        Ok(RustConsoleSprite {
+            width: w,
+            height: h,
+            glyphs: glyphs.into_iter().map(|g| g as char).collect(),
+            colors: colors.into_iter().map(|c| c as u16).collect()
         })
     }
 
