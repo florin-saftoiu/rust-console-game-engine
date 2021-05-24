@@ -1,4 +1,4 @@
-use rust_console_game_engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine, VK_UP, VK_LEFT, VK_RIGHT};
+use rust_console_game_engine::{RustConsole, RustConsoleGame, RustConsoleGameEngine};
 
 use std::collections::VecDeque;
 
@@ -37,7 +37,7 @@ impl RustConsoleGame for Racer {
     }
 
     fn update(&mut self, console: &mut RustConsole, elapsed_time: f32) {
-        if console.key(VK_UP as usize).held {
+        if console.key(RustConsole::VK_UP as usize).held {
             self.speed += 2f32 * elapsed_time;
         } else {
             self.speed -= 1f32 * elapsed_time;
@@ -47,12 +47,12 @@ impl RustConsoleGame for Racer {
 
         // car curvature is accumulated left/right input, but inversely proportional to speed
         // i.e. it is harder to turn at high speed
-        if console.key(VK_LEFT as usize).held {
+        if console.key(RustConsole::VK_LEFT as usize).held {
             self.player_curvature -= 0.7f32 * elapsed_time * (1f32 - self.speed / 2f32);
             car_direction = -1;
         }
 
-        if console.key(VK_RIGHT as usize).held {
+        if console.key(RustConsole::VK_RIGHT as usize).held {
             self.player_curvature += 0.7f32 * elapsed_time * (1f32 - self.speed / 2f32);
             car_direction = 1;
         }

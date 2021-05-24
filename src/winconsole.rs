@@ -8,7 +8,11 @@ use std::os::windows::ffi::OsStrExt;
 use std::iter::once;
 use libc::memset;
 
-use super::bindings::{
+mod bindings {
+    windows::include_bindings!();
+}
+
+use bindings::{
     Windows::Win32::{
         System::{
             SystemServices::{
@@ -30,6 +34,7 @@ use super::bindings::{
                 SetConsoleScreenBufferInfoEx,
                 SetConsoleMode,
                 GetConsoleWindow,
+                SetConsoleTitleW,
                 WriteConsoleOutputW,
                 FlushConsoleInputBuffer,
                 GetNumberOfConsoleInputEvents,
@@ -54,7 +59,10 @@ use super::bindings::{
                 GWL_STYLE,
                 WS_MAXIMIZEBOX,
                 WS_SIZEBOX,
-                LWA_ALPHA
+                LWA_ALPHA,
+                VK_UP,
+                VK_LEFT,
+                VK_RIGHT
             },
             KeyboardAndMouseInput::GetAsyncKeyState
         },
@@ -120,6 +128,10 @@ impl RustConsole {
     pub const PIXEL_THREEQUARTER: char = '\u{2593}';
     pub const PIXEL_HALF: char  = '\u{2592}';
     pub const PIXEL_QUARTER: char = '\u{2591}';
+
+    pub const VK_UP: u32 = VK_UP;
+    pub const VK_LEFT: u32 = VK_LEFT;
+    pub const VK_RIGHT: u32 = VK_RIGHT;
     
     pub(crate) fn new(width: usize, height: usize, font_width: i16, font_height: i16) -> Result<RustConsole, Error> {
         let h_console = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
@@ -263,6 +275,11 @@ impl RustConsole {
     pub fn font_height(&self) -> i16 { self.font_height }
     
     pub fn key(&self, v_key: usize) -> KeyState { self.keys[v_key] }
+
+    pub fn set_title(&self, title: String) {
+        let ret = unsafe { SetConsoleTitleW(title) };
+        if !ret.as_bool() { panic!("Error setting window title: {:?}", Error::last_os_error()); }
+    }
     
     pub fn resize(&mut self, new_width: usize, new_height: usize, new_font_width: i16, new_font_height: i16) {
         let mut rect_window = SMALL_RECT { Left: 0, Top: 0, Right: 1, Bottom: 1 };

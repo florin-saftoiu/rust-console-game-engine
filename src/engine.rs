@@ -1,5 +1,4 @@
 use super::{RustConsole, RustConsoleGame};
-use super::bindings::Windows::Win32::System::Console::SetConsoleTitleW;
 
 use std::time::Instant;
 use std::io::Error;
@@ -36,9 +35,7 @@ impl<'a> RustConsoleGameEngine<'a> {
             
             self.game.update(&mut self.console, elapsed_time);
             
-            let title = format!("RustConsoleGameEngine - {} - FPS: {:3.2}", self.game.name(), 1f32 / elapsed_time);
-            let ret = unsafe { SetConsoleTitleW(title) };
-            if !ret.as_bool() { panic!("Error setting window title: {:?}", Error::last_os_error()); }
+            self.console.set_title(format!("RustConsoleGameEngine - {} - FPS: {:3.2}", self.game.name(), 1f32 / elapsed_time));
             
             self.console.write_output();
         }

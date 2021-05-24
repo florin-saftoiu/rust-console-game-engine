@@ -1,3 +1,7 @@
+#[cfg(not(windows))]
+fn main() {}
+
+#[cfg(windows)]
 fn main() {
     windows::build!(
         Windows::Win32::System::SystemServices::{

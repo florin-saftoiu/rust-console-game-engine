@@ -1,17 +1,13 @@
-mod bindings {
-    windows::include_bindings!();
-}
-pub use bindings::Windows::Win32::UI::WindowsAndMessaging::{
-    VK_UP,
-    VK_LEFT,
-    VK_RIGHT
-};
+#[cfg(target_os = "windows")]
+#[path = "winconsole.rs"]
+mod console;
+#[cfg(not(target_os = "windows"))]
+#[path = "noconsole.rs"]
+mod console;
+pub use console::RustConsole;
 
 mod engine;
 pub use engine::RustConsoleGameEngine;
-
-mod console;
-pub use console::RustConsole;
 
 mod sprite;
 pub use sprite::RustConsoleSprite;
