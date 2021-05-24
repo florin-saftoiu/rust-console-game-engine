@@ -77,6 +77,9 @@ pub use bindings::Windows::Win32::UI::WindowsAndMessaging::{
     VK_RIGHT
 };
 
+mod sprite;
+pub use sprite::RustConsoleSprite;
+
 #[derive(Copy, Clone)]
 pub struct KeyState {
     pub pressed: bool,
@@ -713,6 +716,10 @@ impl RustConsole {
                 y -= 1;
             }
         }
+    }
+
+    pub fn draw_sprite(&mut self, x: usize, y: usize, sprite: &RustConsoleSprite) {
+
     }
 }
 
