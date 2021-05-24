@@ -699,7 +699,13 @@ impl RustConsole {
         }
     }
 
-    pub fn draw_sprite(&mut self, _x: usize, _y: usize, _sprite: &RustConsoleSprite) {
-
+    pub fn draw_sprite(&mut self, x: usize, y: usize, sprite: &RustConsoleSprite) {
+        for i in 0..sprite.width() {
+            for j in 0..sprite.height() {
+                if sprite.get_glyph(i, j) != ' ' {
+                    self.draw(x + i, y + j, sprite.get_glyph(i, j), sprite.get_color(i, j));
+                }
+            }
+        }
     }
 }
