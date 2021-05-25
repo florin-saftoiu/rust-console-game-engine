@@ -1,8 +1,5 @@
-#[cfg(target_os = "windows")]
-#[path = "winconsole.rs"]
-mod console;
-#[cfg(not(target_os = "windows"))]
-#[path = "noconsole.rs"]
+#[cfg_attr(target_os = "windows", path = "winconsole.rs")]
+#[cfg_attr(not(target_os = "windows"), path = "noconsole.rs")]
 mod console;
 pub use console::RustConsole;
 
