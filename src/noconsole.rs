@@ -45,6 +45,7 @@ impl RustConsole {
     pub const PIXEL_QUARTER: char = '\u{2591}';
 
     pub const VK_UP: u32 = 38u32;
+    pub const VK_DOWN: u32 = 40u32;
     pub const VK_LEFT: u32 = 37u32;
     pub const VK_RIGHT: u32 = 39u32;
     

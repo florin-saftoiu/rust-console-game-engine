@@ -61,6 +61,7 @@ use bindings::{
                 WS_SIZEBOX,
                 LWA_ALPHA,
                 VK_UP,
+                VK_DOWN,
                 VK_LEFT,
                 VK_RIGHT
             },
@@ -130,6 +131,7 @@ impl RustConsole {
     pub const PIXEL_QUARTER: char = '\u{2591}';
 
     pub const VK_UP: u32 = VK_UP;
+    pub const VK_DOWN: u32 = VK_DOWN;
     pub const VK_LEFT: u32 = VK_LEFT;
     pub const VK_RIGHT: u32 = VK_RIGHT;
     

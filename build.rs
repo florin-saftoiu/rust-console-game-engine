@@ -49,6 +49,7 @@ fn main() {
             WS_SIZEBOX,
             LWA_ALPHA,
             VK_UP,
+            VK_DOWN,
             VK_LEFT,
             VK_RIGHT
         },
