@@ -1,6 +1,6 @@
 use super::RustConsole;
 
-use std::{io::Error, mem::size_of};
+use std::{convert::TryInto, io::Error, mem::size_of};
 use std::io::Read;
 use std::fs::File;
 
@@ -28,15 +28,15 @@ impl RustConsoleSprite {
         let w = u32::from_le_bytes(buffer) as usize;
         f.read_exact(&mut buffer)?;
         let h = u32::from_le_bytes(buffer) as usize;
-        let mut colors = vec![0u8; w * h];
+        let mut colors = vec![0; size_of::<u16>() * w * h];
         f.read_exact(&mut colors)?;
-        let mut glyphs = vec![0u8; w * h];
+        let mut glyphs = vec![0; size_of::<u16>() * w * h];
         f.read_exact(&mut glyphs)?;
         Ok(RustConsoleSprite {
             width: w,
             height: h,
-            glyphs: glyphs.into_iter().map(|g| g as char).collect(),
-            colors: colors.into_iter().map(|c| c as u16).collect()
+            glyphs: glyphs.chunks_exact(2).map(|c| char::from_u32(u16::from_le_bytes(c[..2].try_into().unwrap()) as u32).unwrap()).collect(),
+            colors: colors.chunks_exact(2).map(|c| u16::from_le_bytes(c[..2].try_into().unwrap())).collect()
         })
     }
 
