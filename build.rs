@@ -1,3 +1,7 @@
+#[cfg(not(windows))]
+fn main() {}
+
+#[cfg(windows)]
 fn main() {
     windows::build!(
         Windows::Win32::System::SystemServices::{
@@ -45,6 +49,7 @@ fn main() {
             WS_SIZEBOX,
             LWA_ALPHA,
             VK_UP,
+            VK_DOWN,
             VK_LEFT,
             VK_RIGHT
         },
