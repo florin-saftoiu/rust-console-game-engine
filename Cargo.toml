@@ -1,6 +1,6 @@
 [package]
 name = "rust-console-game-engine"
-version = "0.4.0"
+version = "0.5.0"
 description = "Console game engine for Rust, heavily inspired by Javidx9's One Lone Coder Console Game Engine (https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h)"
 license = "GPL-3.0-only"
 readme = "README.md"
@@ -12,8 +12,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies] 
-windows = "0.10.0"
 libc = "0.2.66"
+
+[target.'cfg(windows)'.dependencies]
+windows = "0.10.0"
 
 [build-dependencies]
 windows = "0.10.0"
